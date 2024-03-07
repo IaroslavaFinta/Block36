@@ -73,13 +73,13 @@ const authenticate = async({ username, password })=> {
     WHERE username=$1;
   `;
   const response = await client.query(SQL, [username]);
-  if(!response.rows.length || (await bcrypt.compare(password, response.rows[0].password))=== false){
+  if(!response.rows.length || (await bcrypt.compare(password, response.rows[0].password)) === false){
     const error = Error('not authorized');
     error.status = 401;
     throw error;
   }
   const token = await jwt.sign({ id: response.rows[0].id}, JWT);
-  return { token };
+  return { token: token };
 };
 
 // use token to secure login process
