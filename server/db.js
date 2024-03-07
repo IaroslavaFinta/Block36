@@ -2,6 +2,9 @@ const pg = require('pg');
 const client = new pg.Client(process.env.DATABASE_URL || 'postgres://localhost/acme_auth_store_db');
 const uuid = require('uuid');
 const bcrypt = require('bcrypt');
+// install the jsonwebtoken library and we also need a secret
+const jwt = require('jsonwebtoken');
+const JWT = process.env.JWT || 'shhh';
 
 const createTables = async()=> {
   const SQL = `
@@ -58,22 +61,46 @@ const destroyFavorite = async({ user_id, id })=> {
   await client.query(SQL, [user_id, id]);
 };
 
+// check password during authentication
+// Use bcrypt.compare to make sure that a user has provided a correct password by
+// comparing the hash stored in the database and the plain text password passed by user
+// generate and log a JWT token where the payload contains the id of the user
+// send back the jwt token in the authenticate method
 const authenticate = async({ username, password })=> {
   const SQL = `
-    SELECT id, username FROM users WHERE username=$1;
+    SELECT id, password
+    FROM users
+    WHERE username=$1;
   `;
   const response = await client.query(SQL, [username]);
-  if(!response.rows.length){
+  if(!response.rows.length || (await bcrypt.compare(password, response.rows[0].password))=== false){
     const error = Error('not authorized');
     error.status = 401;
     throw error;
   }
-  return { token: response.rows[0].id };
+  const token = await jwt.sign({ id: response.rows[0].id}, JWT);
+  return { token };
 };
 
-const findUserWithToken = async(id)=> {
+// use token to secure login process
+// verify that token in the findUserByToken method
+// use the id of verified token's payload
+// using the id as the parameter in your SQL statement
+const findUserWithToken = async(token)=> {
+  let id;
+  try {
+    const payload = await jwt.verify(token, JWT);
+    id = payload.id;
+  }
+  catch(ex){
+    const error = Error('not authorized');
+    error.status = 401;
+    throw error;
+  }
   const SQL = `
-    SELECT id, username FROM users WHERE id=$1;
+    SELECT id, username
+    FROM users
+    WHERE id=$1;
   `;
   const response = await client.query(SQL, [id]);
   if(!response.rows.length){
