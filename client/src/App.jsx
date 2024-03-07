@@ -44,6 +44,7 @@ function App() {
     }
   };
 
+  // products
   useEffect(()=> {
     const fetchProducts = async()=> {
       const response = await fetch('/api/products');
@@ -54,6 +55,7 @@ function App() {
     fetchProducts();
   }, []);
 
+  // favorites
   useEffect(()=> {
     const fetchFavorites = async()=> {
       const response = await fetch(`/api/users/${auth.id}/favorites`, {
